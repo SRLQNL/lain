@@ -14,8 +14,6 @@ echo "╚═══════════════════════�
 echo ""
 
 # --- 0. Подключение стороннего репозитория Hyprland ---
-# Hyprland отсутствует в официальных репозиториях Void — нужен сторонний реп.
-# https://github.com/Makrennel/hyprland-void
 echo "[0/5] Подключаю репозиторий hyprland-void..."
 HYPR_REPO_FILE="/etc/xbps.d/hyprland-void.conf"
 if [ ! -f "$HYPR_REPO_FILE" ]; then
@@ -26,7 +24,6 @@ else
     echo "  · Репозиторий уже подключён"
 fi
 
-# Принять fingerprint репозитория и синхронизировать
 sudo xbps-install -S
 echo "  ✓ Репозиторий синхронизирован"
 
@@ -45,12 +42,12 @@ sudo xbps-install -Sy \
     foot \
     kitty \
     fish-shell \
-    neofetch \
+    fastfetch \
     mpv \
-    thunar \
+    Thunar \
     yazi \
     NetworkManager \
-    nm-applet \
+    network-manager-applet \
     brightnessctl \
     swaylock \
     swayidle \
@@ -67,19 +64,15 @@ sudo xbps-install -Sy \
     playerctl \
     wlogout \
     polkit-gnome \
-    yad \
     python3 \
     jq \
-    git \
     git
 
 # --- 2. Включение сервисов runit ---
 echo "[2/5] Включаю системные сервисы..."
 
-# seatd нужен чтобы Hyprland получил доступ к графическому устройству
 sudo xbps-install -Sy seatd
 
-# Добавляем пользователя в группу _seatd — без этого Hyprland не запустится
 sudo usermod -aG _seatd "$USER"
 echo "  ✓ Пользователь $USER добавлен в группу _seatd"
 
@@ -92,7 +85,6 @@ for svc in dbus seatd elogind NetworkManager bluetoothd sddm; do
     fi
 done
 
-# --- 3. Установка PipeWire через сервисы ---
 for svc in pipewire wireplumber; do
     if [ -d "/etc/sv/$svc" ] && [ ! -L "/var/service/$svc" ]; then
         sudo ln -s "/etc/sv/$svc" "/var/service/$svc"
@@ -100,7 +92,7 @@ for svc in pipewire wireplumber; do
     fi
 done
 
-# --- 4. Копирование dotfiles ---
+# --- 3. Копирование dotfiles ---
 echo "[3/5] Копирую dotfiles..."
 mkdir -p \
     "$HOME/.config/hypr/scripts" \
@@ -110,7 +102,7 @@ mkdir -p \
     "$HOME/.config/waybar/scripts/volume-widget" \
     "$HOME/.config/rofi" \
     "$HOME/.config/mako" \
-    "$HOME/.config/neofetch" \
+    "$HOME/.config/fastfetch" \
     "$HOME/.config/clipse" \
     "$HOME/.config/foot" \
     "$HOME/.config/kitty" \
@@ -128,7 +120,7 @@ cp -rv "$DOTFILES_DIR/dotfiles/waybar/style.css" "$HOME/.config/waybar/"
 cp -rv "$DOTFILES_DIR/dotfiles/waybar/mouse.sh" "$HOME/.config/waybar/"
 cp -rv "$DOTFILES_DIR/dotfiles/waybar/scripts/"* "$HOME/.config/waybar/scripts/"
 
-# Скрипты shutdown → ~/Scripts
+# Скрипты shutdown
 cp -v "$DOTFILES_DIR/dotfiles/waybar/scripts/shutdown/main.sh" "$SCRIPTS_DIR/shutdown/main.sh"
 cp -v "$DOTFILES_DIR/dotfiles/waybar/scripts/shutdown/opening.sh" "$SCRIPTS_DIR/shutdown/opening.sh"
 
@@ -138,8 +130,9 @@ cp -rv "$DOTFILES_DIR/dotfiles/rofi/"* "$HOME/.config/rofi/"
 # Mako
 cp -v "$DOTFILES_DIR/dotfiles/mako/config" "$HOME/.config/mako/config"
 
-# Neofetch
-cp -v "$DOTFILES_DIR/dotfiles/neofetch/config.conf" "$HOME/.config/neofetch/config.conf"
+# Fastfetch (конфиг neofetch не совместим, но папку создадим)
+# Конфиг neofetch оставляем как справочник, fastfetch имеет свой формат
+cp -v "$DOTFILES_DIR/dotfiles/neofetch/config.conf" "$HOME/.config/fastfetch/neofetch-config.conf.bak"
 
 # Clipse
 cp -rv "$DOTFILES_DIR/dotfiles/clipse/"* "$HOME/.config/clipse/"
@@ -154,13 +147,13 @@ cp -v "$DOTFILES_DIR/terminal-colors/fish/conf.d/"* "$HOME/.config/fish/conf.d/"
 # Обои
 cp -v "$DOTFILES_DIR/wallpapers and backgrounds/"* "$WALLPAPER_DIR/"
 
-# Сделать скрипты исполняемыми
+# Права на выполнение скриптов
 find "$HOME/.config/hypr/scripts" "$HOME/.config/waybar/scripts" "$SCRIPTS_DIR" \
     -name "*.sh" -exec chmod +x {} \;
 
 echo "  ✓ Dotfiles скопированы"
 
-# --- 5. SDDM тема ---
+# --- 4. SDDM тема ---
 echo "[4/5] Устанавливаю SDDM тему..."
 sudo cp -r "$DOTFILES_DIR/sddm-theme/plasma-login-kawaiki" /usr/share/sddm/themes/
 sudo mkdir -p /etc/sddm.conf.d
@@ -170,7 +163,7 @@ Current=plasma-login-kawaiki
 EOF
 echo "  ✓ SDDM тема установлена"
 
-# --- 6. Fish как дефолтный шелл ---
+# --- 5. Fish как дефолтный шелл ---
 echo "[5/5] Устанавливаю fish как дефолтный шелл..."
 if ! grep -q fish /etc/shells; then
     which fish | sudo tee -a /etc/shells > /dev/null
@@ -178,7 +171,6 @@ fi
 chsh -s "$(which fish)"
 echo "  ✓ Fish установлен как дефолтный шелл"
 
-# --- Финал ---
 echo ""
 echo "╔══════════════════════════════════════════╗"
 echo "║            Установка завершена!           ║"
