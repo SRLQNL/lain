@@ -38,7 +38,7 @@ sudo xbps-install -Sy \
     hyprpaper \
     hypridle \
     hyprlock \
-    waybar \
+    Waybar \
     rofi \
     mako \
     sddm \
