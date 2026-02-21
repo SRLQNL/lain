@@ -1,0 +1,2 @@
+I did not change the fish configuration,
+it is standard for the Garuda Arch Linux distribution
