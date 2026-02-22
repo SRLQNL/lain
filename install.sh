@@ -1,313 +1,442 @@
-#!/bin/bash
-# =====================================================================
-# Установщик Lain Rice для Void Linux (glibc)
-# =====================================================================
-set -e
+#!/usr/bin/env bash
+# =============================================================================
+#  Void Linux — Hyprland Setup Script
+#  Запускай от обычного пользователя: bash install.sh
+# =============================================================================
+set -euo pipefail
 
-DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+# --- Цвета ---
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+
+info()   { echo -e "${BLUE}[>>]${NC} $*"; }
+ok()     { echo -e "${GREEN}[ok]${NC} $*"; }
+warn()   { echo -e "${YELLOW}[!]${NC} $*"; }
+die()    { echo -e "${RED}[ERR]${NC} $*" >&2; exit 1; }
+hdr()    { echo -e "\n${BOLD}${BLUE}══════ $* ══════${NC}"; }
+
+# =============================================================================
+# Проверки
+# =============================================================================
+hdr "Проверка окружения"
+
+[ -f /etc/os-release ] && grep -qi "void" /etc/os-release \
+    || die "Скрипт рассчитан на Void Linux."
+
+[ "$EUID" -ne 0 ] \
+    || die "Запусти как обычный пользователь, не root. sudo вызовется сам."
+
+command -v sudo &>/dev/null \
+    || die "sudo не установлен. Установи: xbps-install -S sudo, добавь себя в wheel."
+
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WALLPAPER_DIR="$HOME/Pictures/wallpapers"
-SCRIPTS_DIR="$HOME/Scripts"
 
-echo "╔══════════════════════════════════════════╗"
-echo "║   Lain Rice — Установщик для Void Linux  ║"
-echo "╚══════════════════════════════════════════╝"
-echo ""
+info "Dotfiles : $DOTFILES"
+info "Пользователь: $USER  Домашняя: $HOME"
 
-# =====================================================================
-# 0. Репозиторий Hyprland для Void
-# =====================================================================
-echo "[0/6] Подключаю репозиторий hyprland-void..."
-HYPR_REPO_FILE="/etc/xbps.d/hyprland-void.conf"
-if [ ! -f "$HYPR_REPO_FILE" ]; then
-    echo "repository=https://raw.githubusercontent.com/Makrennel/hyprland-void/repository-x86_64-glibc" \
-        | sudo tee "$HYPR_REPO_FILE" > /dev/null
-    echo "  ✓ Репозиторий добавлен"
-else
-    echo "  · Репозиторий уже подключён"
-fi
+# =============================================================================
+# 1. Обновление репозиториев
+# =============================================================================
+hdr "Обновление репозиториев"
+sudo xbps-install -Syu --yes
+ok "Репозитории обновлены"
 
-sudo xbps-install -S
-echo "  ✓ Репозиторий синхронизирован"
+# =============================================================================
+# 2. Пакеты из xbps
+# =============================================================================
+hdr "Установка пакетов из xbps"
 
-# =====================================================================
-# 1. Установка пакетов
-# =====================================================================
-echo "[1/6] Устанавливаю пакеты через xbps..."
-sudo xbps-install -Sy \
-    hyprland \
-    xdg-desktop-portal-hyprland \
-    hyprpaper \
-    hypridle \
-    hyprlock \
-    hyprland-qtutils \
-    Waybar \
-    rofi \
-    mako \
-    sddm \
-    foot \
-    kitty \
-    fish-shell \
-    starship \
-    fastfetch \
-    mpv \
-    Thunar \
-    yazi \
-    NetworkManager \
-    network-manager-applet \
-    brightnessctl \
-    swaylock \
-    swayidle \
-    grim \
-    slurp \
-    swappy \
-    wl-clipboard \
-    pipewire \
-    wireplumber \
-    pavucontrol \
-    bluez \
-    bluetuith \
-    pamixer \
-    playerctl \
-    wlogout \
-    polkit-gnome \
-    elogind \
-    dbus \
-    xdg-user-dirs \
-    bat \
-    eza \
-    ugrep \
-    tty-clock \
-    jq \
-    git \
-    python3 \
+# Пакеты, точно присутствующие в void repos
+XBPS_PKGS=(
+    # Wayland / Hyprland
+    hyprland
+    xdg-desktop-portal-hyprland
+    xdg-desktop-portal-gtk
+    xdg-user-dirs
+
+    # Статус-бар
+    waybar
+
+    # Терминал
+    alacritty
+
+    # Shell
+    fish-shell
+
+    # Лаунчеры
+    rofi-wayland
+    wofi
+
+    # Скриншоты
+    grim
+    slurp
+
+    # Буфер обмена
+    wl-clipboard
+
+    # Звук
+    pipewire
+    wireplumber
+    pavucontrol
+    pamixer
+
+    # Яркость и медиа
+    brightnessctl
+    playerctl
+
+    # Приложения
+    nautilus
+    gnome-text-editor
+    blueman
+    neofetch
+    xfce4-taskmanager
+    firefox
+
+    # Системные
+    dbus
+    git
+    curl
+    wget
+    unzip
+    tar
+    python3
     python3-pip
+    fontconfig
+    noto-fonts-ttf
+    noto-fonts-cjk
+)
 
-echo "  ✓ Основные пакеты установлены"
+# Пакеты, которые МОГУТ быть в репо (пробуем — не паникуем при ошибке)
+XBPS_OPTIONAL=(
+    hyprlock
+    swww
+    swaync
+    swaynotificationcenter
+    wlogout
+    cliphist
+    hyprshade
+    ly
+    greetd
+    greetd-tuigreet
+)
 
-# =====================================================================
-# 2. Установка clipse (менеджер буфера обмена)
-# =====================================================================
-echo "[2a] Устанавливаю clipse..."
-CLIPSE_VERSION="1.2.0"
-CLIPSE_BIN="$HOME/.local/bin/clipse"
-mkdir -p "$HOME/.local/bin"
+# Устанавливаем основные пакеты
+info "Устанавливаю основные пакеты..."
+sudo xbps-install -y "${XBPS_PKGS[@]}" || true
 
-if [ ! -f "$CLIPSE_BIN" ]; then
-    TMP_DIR=$(mktemp -d)
-    ARCH="amd64"
-    CLIPSE_URL="https://github.com/savedra1/clipse/releases/download/v${CLIPSE_VERSION}/clipse_${CLIPSE_VERSION}_linux_${ARCH}.tar.gz"
-    echo "  Скачиваю clipse v${CLIPSE_VERSION}..."
-    if curl -fsSL "$CLIPSE_URL" -o "$TMP_DIR/clipse.tar.gz" 2>/dev/null; then
-        tar -xzf "$TMP_DIR/clipse.tar.gz" -C "$TMP_DIR"
-        install -m 755 "$TMP_DIR/clipse" "$CLIPSE_BIN"
-        rm -rf "$TMP_DIR"
-        echo "  ✓ clipse установлен в ~/.local/bin/clipse"
+# Пробуем опциональные по одному
+info "Пробую опциональные пакеты..."
+for pkg in "${XBPS_OPTIONAL[@]}"; do
+    if sudo xbps-install -y "$pkg" 2>/dev/null; then
+        ok "  $pkg"
     else
-        echo "  ⚠ Не удалось скачать clipse. Установи вручную:"
-        echo "    https://github.com/savedra1/clipse/releases"
-        echo "    Положи бинарник в ~/.local/bin/clipse"
-    fi
-else
-    echo "  · clipse уже установлен"
-fi
-
-# =====================================================================
-# 2b. Установка unimatrix (виджет матрицы на рабочем столе)
-# =====================================================================
-echo "[2b] Устанавливаю unimatrix..."
-if ! command -v unimatrix &>/dev/null; then
-    pip install unimatrix --break-system-packages 2>/dev/null && \
-        echo "  ✓ unimatrix установлен" || \
-        echo "  ⚠ Не удалось установить unimatrix через pip"
-else
-    echo "  · unimatrix уже установлен"
-fi
-
-# =====================================================================
-# 2c. Установка JetBrainsMono Nerd Font
-# =====================================================================
-# font-jetbrains-mono и nerd-fonts-symbols-only отсутствуют в Void репо.
-# nerd-fonts мета-пакет весит >2GB (все 50+ шрифтов) — не ставим.
-# Скачиваем только JetBrainsMono Nerd Font (~10MB) с GitHub releases.
-echo "[2c] Устанавливаю JetBrainsMono Nerd Font..."
-FONT_DIR="$HOME/.local/share/fonts/JetBrainsMono"
-NERD_VERSION="3.3.0"
-FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_VERSION}/JetBrainsMono.tar.xz"
-
-if fc-list | grep -qi "JetBrainsMono Nerd"; then
-    echo "  · JetBrainsMono Nerd Font уже установлен"
-else
-    mkdir -p "$FONT_DIR"
-    TMP_FONT=$(mktemp -d)
-    echo "  Скачиваю JetBrainsMono Nerd Font v${NERD_VERSION} (~10MB)..."
-    if curl -fsSL "$FONT_URL" -o "$TMP_FONT/JetBrainsMono.tar.xz" 2>/dev/null; then
-        tar -xf "$TMP_FONT/JetBrainsMono.tar.xz" -C "$FONT_DIR"
-        rm -rf "$TMP_FONT"
-        fc-cache -f "$FONT_DIR"
-        echo "  ✓ JetBrainsMono Nerd Font установлен в ~/.local/share/fonts/JetBrainsMono"
-    else
-        rm -rf "$TMP_FONT"
-        echo "  ⚠ Не удалось скачать шрифт. Установи вручную:"
-        echo "    https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_VERSION}/JetBrainsMono.tar.xz"
-        echo "    Распакуй в ~/.local/share/fonts/ и выполни: fc-cache -fv"
-    fi
-fi
-
-# =====================================================================
-# 3. Группы пользователя и сервисы
-# =====================================================================
-echo "[3/6] Настраиваю сервисы и группы..."
-
-# Только elogind — не seatd. Они конфликтуют!
-for grp in video audio input wheel; do
-    if id -nG "$USER" | grep -qw "$grp"; then
-        echo "  · Группа $grp уже добавлена"
-    else
-        sudo usermod -aG "$grp" "$USER"
-        echo "  ✓ Пользователь $USER добавлен в группу $grp"
+        warn "  $pkg — не найден в репо (установим вручную)"
     fi
 done
 
-for svc in dbus elogind NetworkManager bluetoothd sddm; do
-    if [ ! -L "/var/service/$svc" ]; then
-        sudo ln -s "/etc/sv/$svc" "/var/service/$svc"
-        echo "  ✓ $svc включён"
+# =============================================================================
+# 3. Ручная установка пакетов не из репо
+# =============================================================================
+hdr "Ручная установка отсутствующих пакетов"
+
+ARCH="$(uname -m)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+# --- swww (daemon обоев) ---
+if ! command -v swww &>/dev/null; then
+    info "Устанавливаю swww..."
+    SWWW_VER="0.9.5"
+    SWWW_URL="https://github.com/LGFae/swww/releases/download/v${SWWW_VER}/swww-${ARCH}-unknown-linux-musl.tar.gz"
+    if curl -fsSL "$SWWW_URL" -o "$TMP/swww.tar.gz"; then
+        tar -xf "$TMP/swww.tar.gz" -C "$TMP"
+        sudo install -Dm755 "$TMP/swww"        /usr/local/bin/swww
+        sudo install -Dm755 "$TMP/swww-daemon" /usr/local/bin/swww-daemon
+        ok "swww установлен"
     else
-        echo "  · $svc уже включён"
+        warn "swww: не удалось скачать. Установи вручную: https://github.com/LGFae/swww"
     fi
-done
+fi
 
-# PipeWire запускается через hyprland (exec-once), не нужен как сервис
-echo "  · PipeWire и WirePlumber запускаются из Hyprland (exec-once)"
+# --- cliphist (история буфера обмена) ---
+if ! command -v cliphist &>/dev/null; then
+    info "Устанавливаю cliphist..."
+    CLIPHIST_VER="0.6.1"
+    CLIPHIST_URL="https://github.com/sentriz/cliphist/releases/download/v${CLIPHIST_VER}/v${CLIPHIST_VER}-linux-${ARCH}"
+    if curl -fsSL "$CLIPHIST_URL" -o "$TMP/cliphist"; then
+        sudo install -Dm755 "$TMP/cliphist" /usr/local/bin/cliphist
+        ok "cliphist установлен"
+    else
+        warn "cliphist: не удалось скачать."
+    fi
+fi
 
-echo "  ✓ Сервисы настроены"
+# --- swaync / SwayNotificationCenter ---
+if ! command -v swaync &>/dev/null; then
+    info "Устанавливаю swaync..."
+    SWAYNC_VER="0.10.1"
+    SWAYNC_URL="https://github.com/ErikReider/SwayNotificationCenter/releases/download/v${SWAYNC_VER}/swaync-v${SWAYNC_VER}-x86_64.tar.gz"
+    if [ "$ARCH" = "x86_64" ] && curl -fsSL "$SWAYNC_URL" -o "$TMP/swaync.tar.gz"; then
+        tar -xf "$TMP/swaync.tar.gz" -C "$TMP"
+        # Бинарник может быть в разных местах внутри архива
+        SWAYNC_BIN="$(find "$TMP" -name 'swaync' -type f | head -1)"
+        if [ -n "$SWAYNC_BIN" ]; then
+            sudo install -Dm755 "$SWAYNC_BIN" /usr/local/bin/swaync
+            ok "swaync установлен"
+        fi
+    else
+        warn "swaync: не удалось скачать (только x86_64). Попробуй: xbps-install -S swaync"
+    fi
+fi
 
-# =====================================================================
-# 4. Копирование dotfiles
-# =====================================================================
-echo "[4/6] Копирую dotfiles..."
-mkdir -p \
-    "$HOME/.config/hypr/scripts" \
-    "$HOME/.config/waybar/scripts/bluetooth-widget" \
-    "$HOME/.config/waybar/scripts/shutdown" \
-    "$HOME/.config/waybar/scripts/view-mode-widget" \
-    "$HOME/.config/waybar/scripts/volume-widget" \
-    "$HOME/.config/rofi" \
-    "$HOME/.config/mako" \
-    "$HOME/.config/fastfetch" \
-    "$HOME/.config/clipse" \
-    "$HOME/.config/foot" \
-    "$HOME/.config/kitty" \
-    "$HOME/.config/fish/conf.d" \
-    "$WALLPAPER_DIR" \
-    "$SCRIPTS_DIR/rofi-run-on-current-workspace" \
-    "$SCRIPTS_DIR/shutdown" \
-    "$SCRIPTS_DIR/view-mode-widget" \
-    "$SCRIPTS_DIR/volume-widget"
+# --- wlogout ---
+if ! command -v wlogout &>/dev/null; then
+    warn "wlogout не найден в репо. Установи вручную при необходимости."
+    warn "  https://github.com/ArtsyMacaw/wlogout"
+fi
 
-# Hyprland
-cp -rv "$DOTFILES_DIR/dotfiles/hypr/"* "$HOME/.config/hypr/"
+# --- hyprshade (Python) ---
+if ! command -v hyprshade &>/dev/null; then
+    info "Устанавливаю hyprshade (pip)..."
+    pip3 install --user hyprshade 2>/dev/null && ok "hyprshade установлен" \
+        || warn "hyprshade: ошибка установки через pip"
+fi
 
-# Waybar
-cp -rv "$DOTFILES_DIR/dotfiles/waybar/config" "$HOME/.config/waybar/"
-cp -rv "$DOTFILES_DIR/dotfiles/waybar/style.css" "$HOME/.config/waybar/"
-cp -rv "$DOTFILES_DIR/dotfiles/waybar/mouse.sh" "$HOME/.config/waybar/"
-cp -rv "$DOTFILES_DIR/dotfiles/waybar/scripts/"* "$HOME/.config/waybar/scripts/"
+# --- hyprlock (если не установился из репо) ---
+if ! command -v hyprlock &>/dev/null; then
+    warn "hyprlock не найден. Установи вручную: https://github.com/hyprwm/hyprlock"
+fi
 
-# Скрипты
-cp -v "$DOTFILES_DIR/dotfiles/waybar/scripts/shutdown/main.sh" "$SCRIPTS_DIR/shutdown/main.sh"
-cp -v "$DOTFILES_DIR/dotfiles/waybar/scripts/shutdown/opening.sh" "$SCRIPTS_DIR/shutdown/opening.sh"
-cp -v "$DOTFILES_DIR/dotfiles/waybar/scripts/view-mode-widget/main.py" "$SCRIPTS_DIR/view-mode-widget/main.py"
-cp -v "$DOTFILES_DIR/dotfiles/waybar/scripts/volume-widget/main.sh" "$SCRIPTS_DIR/volume-widget/main.sh"
+# =============================================================================
+# 4. Менеджер входа (ly)
+# =============================================================================
+hdr "Менеджер входа"
 
-# Rofi launcher скрипт
-cp -v "$DOTFILES_DIR/Scripts/rofi-run-on-current-workspace/main.sh" "$SCRIPTS_DIR/rofi-run-on-current-workspace/main.sh"
+if command -v ly &>/dev/null; then
+    info "Включаю ly в автозапуск..."
+    sudo ln -sfn /etc/sv/ly /var/service/ 2>/dev/null && ok "ly включён" \
+        || warn "Не удалось включить ly."
+else
+    warn "ly не найден. Hyprland можно запускать вручную с TTY:"
+    warn "  Добавь в ~/.bash_profile или ~/.zprofile:"
+    warn "    if [ -z \"\$WAYLAND_DISPLAY\" ] && [ \"\$XDG_VTNR\" = \"1\" ]; then"
+    warn "      exec Hyprland"
+    warn "    fi"
 
-# Rofi
-cp -rv "$DOTFILES_DIR/dotfiles/rofi/"* "$HOME/.config/rofi/"
+    # Автоматически добавим запуск в .bash_profile если ly не установлен
+    BASH_PROFILE="$HOME/.bash_profile"
+    if ! grep -q "exec Hyprland" "$BASH_PROFILE" 2>/dev/null; then
+        info "Добавляю автозапуск Hyprland в $BASH_PROFILE..."
+        cat >> "$BASH_PROFILE" <<'EOF'
 
-# Mako
-cp -v "$DOTFILES_DIR/dotfiles/mako/config" "$HOME/.config/mako/config"
-
-# Clipse
-cp -rv "$DOTFILES_DIR/dotfiles/clipse/"* "$HOME/.config/clipse/"
-
-# Терминалы
-cp -v "$DOTFILES_DIR/terminal-colors/foot/foot.ini" "$HOME/.config/foot/foot.ini"
-cp -v "$DOTFILES_DIR/terminal-colors/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
-cp -v "$DOTFILES_DIR/terminal-colors/fish/config.fish" "$HOME/.config/fish/config.fish"
-cp -v "$DOTFILES_DIR/terminal-colors/fish/fish_variables" "$HOME/.config/fish/fish_variables"
-cp -v "$DOTFILES_DIR/terminal-colors/fish/conf.d/"* "$HOME/.config/fish/conf.d/"
-
-# Обои
-cp -v "$DOTFILES_DIR/wallpapers and backgrounds/"* "$WALLPAPER_DIR/"
-
-# Права на выполнение
-find "$HOME/.config/hypr/scripts" "$HOME/.config/waybar/scripts" "$SCRIPTS_DIR" \
-    -name "*.sh" -exec chmod +x {} \;
-find "$HOME/.config/waybar/scripts" \
-    -name "*.py" -exec chmod +x {} \;
-chmod +x "$SCRIPTS_DIR/view-mode-widget/main.py"
-
-echo "  ✓ Dotfiles скопированы"
-
-# =====================================================================
-# 5. SDDM тема
-# =====================================================================
-echo "[5/6] Устанавливаю SDDM тему..."
-sudo cp -r "$DOTFILES_DIR/sddm-theme/plasma-login-kawaiki" /usr/share/sddm/themes/
-sudo mkdir -p /etc/sddm.conf.d
-sudo tee /etc/sddm.conf.d/theme.conf > /dev/null << 'EOF'
-[Theme]
-Current=plasma-login-kawaiki
+# Автозапуск Hyprland на TTY1
+if [ -z "$WAYLAND_DISPLAY" ] && [ "$XDG_VTNR" = "1" ]; then
+    exec Hyprland
+fi
 EOF
-echo "  ✓ SDDM тема установлена"
-
-# =====================================================================
-# 6. Fish как дефолтный шелл
-# =====================================================================
-echo "[6/6] Устанавливаю fish как дефолтный шелл..."
-FISH_PATH="$(which fish)"
-if ! grep -qF "$FISH_PATH" /etc/shells; then
-    echo "$FISH_PATH" | sudo tee -a /etc/shells > /dev/null
+        ok "Автозапуск добавлен в $BASH_PROFILE"
+    fi
 fi
-chsh -s "$FISH_PATH"
-echo "  ✓ Fish установлен как дефолтный шелл"
 
-# =====================================================================
-# Финал
-# =====================================================================
+# =============================================================================
+# 5. Системные сервисы (runit)
+# =============================================================================
+hdr "Включение системных сервисов"
+
+SERVICES=(dbus bluetoothd)
+for svc in "${SERVICES[@]}"; do
+    if [ -d "/etc/sv/$svc" ]; then
+        sudo ln -sfn "/etc/sv/$svc" /var/service/ 2>/dev/null && ok "$svc включён" \
+            || warn "$svc: уже включён или ошибка"
+    else
+        warn "Сервис не найден: $svc"
+    fi
+done
+
+# =============================================================================
+# 6. Установка шрифтов
+# =============================================================================
+hdr "Установка шрифтов"
+
+FONTS_DIR="$HOME/.local/share/fonts"
+mkdir -p "$FONTS_DIR"
+
+if [ -d "$DOTFILES/additional-assets" ]; then
+    FONT_COUNT=0
+    for font_archive in "$DOTFILES/additional-assets"/Font_*.tar.gz; do
+        [ -f "$font_archive" ] || continue
+        font_name="$(basename "$font_archive" .tar.gz)"
+        info "  Распаковываю: $font_name"
+        tar -xf "$font_archive" -C "$FONTS_DIR" 2>/dev/null && FONT_COUNT=$((FONT_COUNT+1)) \
+            || warn "  Не удалось распаковать: $font_name"
+    done
+
+    if [ "$FONT_COUNT" -gt 0 ]; then
+        fc-cache -f "$FONTS_DIR" && ok "$FONT_COUNT шрифтов установлено"
+    else
+        warn "Шрифты не найдены в additional-assets/"
+    fi
+else
+    warn "Папка additional-assets/ не найдена"
+fi
+
+# =============================================================================
+# 7. Курсор Bibata-Modern-Classic
+# =============================================================================
+hdr "Установка курсора Bibata"
+
+ICONS_DIR="$HOME/.local/share/icons"
+mkdir -p "$ICONS_DIR"
+
+if ! [ -d "$ICONS_DIR/Bibata-Modern-Classic" ]; then
+    info "Скачиваю Bibata-Modern-Classic..."
+    BIBATA_URL="https://github.com/ful1e5/Bibata_Cursor/releases/latest/download/Bibata-Modern-Classic.tar.xz"
+    if curl -fsSL "$BIBATA_URL" -o "$TMP/bibata.tar.xz"; then
+        tar -xf "$TMP/bibata.tar.xz" -C "$ICONS_DIR"
+        ok "Bibata-Modern-Classic установлен"
+    else
+        warn "Bibata: не удалось скачать."
+    fi
+else
+    ok "Bibata-Modern-Classic уже установлен"
+fi
+
+# =============================================================================
+# 8. Копирование dotfiles
+# =============================================================================
+hdr "Копирование конфигов"
+
+# ~/.config/*
+if [ -d "$DOTFILES/.config" ]; then
+    mkdir -p "$HOME/.config"
+    cp -r "$DOTFILES/.config/"* "$HOME/.config/"
+    ok "Конфиги скопированы в ~/.config/"
+fi
+
+# Файлы из home/ (без скрытых — это .bashrc и т.п.)
+if [ -d "$DOTFILES/home" ]; then
+    for f in "$DOTFILES/home"/.[!.]* "$DOTFILES/home"/*; do
+        [ -e "$f" ] || continue
+        fname="$(basename "$f")"
+        cp -r "$f" "$HOME/$fname"
+        ok "  Скопирован: ~/$fname"
+    done
+fi
+
+# =============================================================================
+# 9. Копирование обоев
+# =============================================================================
+hdr "Копирование обоев"
+
+mkdir -p "$WALLPAPER_DIR"
+mkdir -p "$HOME/.cache/rofi-wallpapers"
+
+if [ -d "$DOTFILES/wallpapers" ]; then
+    cp "$DOTFILES/wallpapers/"* "$WALLPAPER_DIR/" 2>/dev/null && \
+        ok "Обои скопированы в $WALLPAPER_DIR"
+fi
+
+# =============================================================================
+# 10. Исправление путей в конфигах
+# =============================================================================
+hdr "Исправление путей"
+
+HYPR_CONF="$HOME/.config/hypr/hyprland.conf"
+
+# --- hyprland.conf ---
+if [ -f "$HYPR_CONF" ]; then
+    # Заменяем захардкоженного пользователя
+    sed -i "s|/home/anik|$HOME|g" "$HYPR_CONF"
+
+    # Указываем первый доступный обой
+    FIRST_WALL="$(ls "$WALLPAPER_DIR"/*.{jpg,jpeg,png,gif} 2>/dev/null | head -1 || true)"
+    if [ -n "$FIRST_WALL" ]; then
+        # Добавляем запуск swww после daemon
+        sed -i "s|exec-once=swww-daemon --format xrgb|exec-once=swww-daemon --format xrgb\nexec-once=sleep 1 \&\& swww img \"$FIRST_WALL\"|" "$HYPR_CONF"
+        info "Обой по умолчанию: $FIRST_WALL"
+    fi
+
+    # Комментируем AGS (не установлен на чистом void)
+    sed -i 's|^exec-once=/usr/local/bin/ags|#exec-once=/usr/local/bin/ags  # AGS: установи вручную при необходимости|g' "$HYPR_CONF"
+    sed -i 's|^bind = \$mainMod, Z, exec, /usr/local/bin/ags|#bind = $mainMod, Z, exec, /usr/local/bin/ags|g' "$HYPR_CONF"
+
+    ok "hyprland.conf обновлён"
+fi
+
+# --- wofi.sh — меняем директорию обоев ---
+WOFI_SCRIPT="$HOME/wofi.sh"
+if [ -f "$WOFI_SCRIPT" ]; then
+    sed -i "s|WALLPAPER_DIR=\".*\"|WALLPAPER_DIR=\"$WALLPAPER_DIR\"|g" "$WOFI_SCRIPT"
+    chmod +x "$WOFI_SCRIPT"
+    ok "wofi.sh обновлён (WALLPAPER_DIR=$WALLPAPER_DIR)"
+fi
+
+# --- fish/config.fish — убираем /home/anik ---
+FISH_CONF="$HOME/.config/fish/config.fish"
+if [ -f "$FISH_CONF" ]; then
+    sed -i "s|/home/anik|$HOME|g" "$FISH_CONF"
+    ok "fish config обновлён"
+fi
+
+# =============================================================================
+# 11. XDG директории
+# =============================================================================
+hdr "XDG директории"
+xdg-user-dirs-update && ok "XDG директории созданы"
+
+# =============================================================================
+# 12. Установка fish как shell (опционально)
+# =============================================================================
+hdr "Установка fish shell"
+if command -v fish &>/dev/null; then
+    FISH_PATH="$(command -v fish)"
+    # Добавляем fish в /etc/shells если ещё нет
+    grep -qxF "$FISH_PATH" /etc/shells 2>/dev/null || echo "$FISH_PATH" | sudo tee -a /etc/shells > /dev/null
+    info "Fish shell доступен по: $FISH_PATH"
+    info "Чтобы сделать fish дефолтным: chsh -s $FISH_PATH"
+else
+    warn "fish не найден"
+fi
+
+# =============================================================================
+# Итог
+# =============================================================================
 echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║            Установка завершена!                      ║"
-echo "╠══════════════════════════════════════════════════════╣"
-echo "║                                                      ║"
-echo "║  ⚠  ОБЯЗАТЕЛЬНО: перезагрузись полностью!           ║"
-echo "║  Группы video/audio/input применяются только        ║"
-echo "║  после полной перезагрузки (не re-login).            ║"
-echo "║                                                      ║"
-echo "║  Опциональные приложения (нет в Void репо):          ║"
-echo "║  Установи через Flatpak если нужны:                  ║"
-echo "║    flatpak install app.librewolf.librewolf           ║"
-echo "║    flatpak install org.telegram.desktop              ║"
-echo "║    flatpak install com.spotify.Client                ║"
-echo "║  После установки раскомментируй строки в             ║"
-echo "║  ~/.config/hypr/hyprland.conf (секция автозапуск)   ║"
-echo "║                                                      ║"
-echo "║  Nerd Fonts (если иконки не отображаются):           ║"
-echo "║  sudo xbps-install nerd-fonts                        ║"
-echo "║  Или скачай JetBrainsMono Nerd Font с:               ║"
-echo "║    https://www.nerdfonts.com/font-downloads          ║"
-echo "║  Положи в ~/.local/share/fonts/ и запусти:           ║"
-echo "║    fc-cache -fv                                      ║"
-echo "║                                                      ║"
-echo "║  Горячие клавиши:                                    ║"
-echo "║  Super+T     → терминал (foot)                       ║"
-echo "║  Super+X     → rofi лаунчер                          ║"
-echo "║  Super+E     → файловый менеджер (yazi)              ║"
-echo "║  Super+Shift+E → Thunar (GUI)                        ║"
-echo "║  Super+V     → менеджер буфера (clipse)              ║"
-echo "║  Super+Q     → закрыть окно                          ║"
-echo "║  Super+H     → скрыть/показать waybar                ║"
-echo "║                                                      ║"
-echo "╚══════════════════════════════════════════════════════╝"
+echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}${BOLD}║          Установка завершена успешно!                ║${NC}"
+echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "  ${BOLD}Что дальше:${NC}"
+echo ""
+echo -e "  1. Перезагрузись:  ${BOLD}sudo reboot${NC}"
+echo ""
+
+if command -v ly &>/dev/null; then
+    echo -e "  2. На экране ly выбери сессию ${BOLD}Hyprland${NC}"
+else
+    echo -e "  2. Войди на TTY1 — Hyprland запустится автоматически"
+    echo -e "     (или вручную: ${BOLD}Hyprland${NC})"
+fi
+
+echo ""
+echo -e "  ${BOLD}Клавиши Hyprland:${NC}"
+echo "    Super+Q   → Терминал (alacritty)"
+echo "    Super+E   → Файловый менеджер (nautilus)"
+echo "    Super+A   → Rofi (лаунчер приложений)"
+echo "    Super+R   → Wofi (лаунчер)"
+echo "    Super+W   → Смена обоев (wofi.sh)"
+echo "    Super+L   → Экран блокировки (hyprlock)"
+echo "    Super+G   → Звук (pavucontrol)"
+echo "    Super+T   → Task Manager"
+echo "    Super+\`   → Обзор воркспейсов (hyprexpo)"
+echo "    Alt+S     → Скриншот в буфер"
+echo "    Super+O   → История буфера обмена"
+echo ""
+echo -e "  ${BOLD}Обои:${NC} $WALLPAPER_DIR"
+echo -e "  ${BOLD}Конфиг Hyprland:${NC} ~/.config/hypr/hyprland.conf"
+echo -e "  ${BOLD}Конфиг Waybar:${NC}  ~/.config/waybar/config.jsonc"
+echo ""
+echo -e "  ${YELLOW}Замечание:${NC} AGS (Super+Z) требует отдельной установки."
+echo -e "  Подробнее: ${BOLD}https://aylur.github.io/ags-docs/${NC}"
+echo ""
