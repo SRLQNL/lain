@@ -77,7 +77,6 @@ sudo xbps-install -Sy \
     eza \
     ugrep \
     tty-clock \
-    find-the-command \
     jq \
     git \
     python3 \
