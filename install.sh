@@ -80,9 +80,7 @@ sudo xbps-install -Sy \
     jq \
     git \
     python3 \
-    python3-pip \
-    font-jetbrains-mono \
-    nerd-fonts-symbols-only
+    python3-pip
 
 echo "  ✓ Основные пакеты установлены"
 
@@ -123,6 +121,36 @@ if ! command -v unimatrix &>/dev/null; then
         echo "  ⚠ Не удалось установить unimatrix через pip"
 else
     echo "  · unimatrix уже установлен"
+fi
+
+# =====================================================================
+# 2c. Установка JetBrainsMono Nerd Font
+# =====================================================================
+# font-jetbrains-mono и nerd-fonts-symbols-only отсутствуют в Void репо.
+# nerd-fonts мета-пакет весит >2GB (все 50+ шрифтов) — не ставим.
+# Скачиваем только JetBrainsMono Nerd Font (~10MB) с GitHub releases.
+echo "[2c] Устанавливаю JetBrainsMono Nerd Font..."
+FONT_DIR="$HOME/.local/share/fonts/JetBrainsMono"
+NERD_VERSION="3.3.0"
+FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_VERSION}/JetBrainsMono.tar.xz"
+
+if fc-list | grep -qi "JetBrainsMono Nerd"; then
+    echo "  · JetBrainsMono Nerd Font уже установлен"
+else
+    mkdir -p "$FONT_DIR"
+    TMP_FONT=$(mktemp -d)
+    echo "  Скачиваю JetBrainsMono Nerd Font v${NERD_VERSION} (~10MB)..."
+    if curl -fsSL "$FONT_URL" -o "$TMP_FONT/JetBrainsMono.tar.xz" 2>/dev/null; then
+        tar -xf "$TMP_FONT/JetBrainsMono.tar.xz" -C "$FONT_DIR"
+        rm -rf "$TMP_FONT"
+        fc-cache -f "$FONT_DIR"
+        echo "  ✓ JetBrainsMono Nerd Font установлен в ~/.local/share/fonts/JetBrainsMono"
+    else
+        rm -rf "$TMP_FONT"
+        echo "  ⚠ Не удалось скачать шрифт. Установи вручную:"
+        echo "    https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_VERSION}/JetBrainsMono.tar.xz"
+        echo "    Распакуй в ~/.local/share/fonts/ и выполни: fc-cache -fv"
+    fi
 fi
 
 # =====================================================================
