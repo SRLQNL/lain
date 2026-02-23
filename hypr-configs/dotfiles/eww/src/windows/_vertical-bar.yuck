@@ -1,0 +1,100 @@
+(defwidget VerticalBar []
+  (box
+    :orientation "h"
+    :space-evenly false
+    :class "vbar"
+    
+    (revealer
+      :transition "slideright"
+      :reveal revealControlpanel
+      :duration animation-duration-fast
+      
+      (ControlPanel))
+    
+    (centerbox
+      :orientation "v"
+      
+      (BarTop)
+      (BarMiddle)
+      (BarBottom)
+    )))
+
+(defwidget BarTop []
+  (box
+    :orientation "v"
+    :space-evenly false
+    
+    (DotsWorkspaces)
+    ; (Shortcuts)
+  ))
+
+(defwidget BarMiddle []
+  (box
+    :orientation "v"
+    :space-evenly false
+    :valign "center"
+    :height 300
+    
+    (Clock)
+    
+    (Separator :orientation "h" :dots "[1, 2, 3]" :visible true)
+    
+    (BarMediaPlayer :cover true)
+  ))
+
+(defwidget BarBottom []
+  (box
+    :orientation "v"
+    :space-evenly false
+    :valign "end"
+    
+    (RevealOnClick
+      :var revealSystray
+      :varname "revealSystray"
+      :direction "up"
+      (Systemtray :orientation "v")
+    )
+    (Sliders)
+    (Language)
+  ))
+
+(defwidget Sliders []
+  (box
+    :class "control-box"
+    :orientation "v"
+    :space-evenly false
+    :spacing spacing-default
+    
+    (RevealOnHover
+      :var {revealWifiEssid}
+      :varname "revealWifiEssid"
+      :icon {wifi_icon}
+      
+      (label
+        :angle 90
+      :text wifi_essid)
+    )
+    
+    (RevealOnHover
+      :var {revealVolume}
+      :varname "revealVolume"
+      :icon {volumemute == 'false' ? "󰕾" : "󰖁"}
+      
+      (VerticalBarSlider :var {volume} :onchange "pactl set-sink-volume @DEFAULT_SINK@ {}%")
+    )
+    
+    (RevealOnHover
+      :var {revealMicrophone}
+      :varname "revealMicrophone"
+      :icon {volumemute == 'false' ? "" : "󰖁"}
+      
+      (VerticalBarSlider :var {mic_volume} :onchange "pactl set-source-volume @DEFAULT_SOURCE@ {}%")
+    )
+    
+    (RevealOnHover
+      :var {revealBrightness}
+      :varname "revealBrightness"
+      :icon "󰃞"
+      
+      (VerticalBarSlider :var {brightness} :onchange "brightnessctl set {}%"))
+  ))

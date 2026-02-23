@@ -1,0 +1,86 @@
+.reveal-on-hover {
+  padding: 12px 0px;
+}
+
+.reveal-on-click {
+  @extend .widget;
+
+  label {
+    color: $surface2;
+    padding: 4px 0px;
+  }
+}
+
+.separator {
+  padding: 4px 8px;
+
+  .dot {
+    padding: 3px;
+
+    border-radius: 100%;
+
+    background-color: $white;
+  }
+}
+
+.vertical-bar-slider {
+  trough {
+    background-color: $surface2;
+    border-radius: get-token(border-radius);
+    min-height: 80px;
+    min-width: 10px;
+
+    slider {
+      background-color: $white2;
+      border-radius: get-token(border-radius, large);
+      margin: -10px;
+    }
+
+    highlight {
+      background-color: $white0;
+      border-radius: get-token(border-radius);
+    }
+  }
+
+  .volume-icon {
+    font-size: get-token(font-sizes, large);
+  }
+}
+
+.big-bar-slider {
+  trough {
+    min-width: 60px;
+    background-color: $surface1;
+    margin: get-token(margin);
+    border-radius: $rounded;
+
+    highlight {
+      background-color: $surface2;
+      border-radius: $rounded;
+    }
+  }
+
+  .icon {
+    font-size: get-token(font-sizes, extra);
+    margin-bottom: 16px;
+  }
+}
+
+.system-status {
+  margin: get-token(margin, large);
+
+  .progress {
+    color: $accent;
+    background-color: $surface1;
+  }
+
+  .icon {
+    border-radius: 100%;
+    background-color: $surface0;
+
+    label {
+      font-family: "Symbols Nerd Font";
+      font-size: get-token(font-sizes, extra);
+    }
+  }
+}

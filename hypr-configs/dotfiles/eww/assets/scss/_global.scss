@@ -1,0 +1,61 @@
+.animation {
+  transition: all 600ms cubic-bezier(0.075, 0.82, 0.165, 1);
+}
+
+.widget {
+  margin: $widget-margin;
+  padding: $widget-padding;
+  border-radius: $rounded;
+  background-color: $surface0;
+}
+
+.panel-widget {
+  @extend .widget;
+
+  margin: $panel-widget-margin;
+}
+
+.icon {
+  font-family: "Symbols Nerd Font";
+  font-size: $icon-size;
+}
+
+.popup {
+  padding: get-token(padding, small);
+  border-radius: get-token(border-radius);
+  margin: get-token(margin);
+  background-color: $surface1;
+}
+
+.border {
+  border: 2px #fff solid;
+}
+
+button {
+  transition-duration: 0.4s;
+  border-radius: 6px;
+
+  &:hover {
+    background-color: $surface2;
+  }
+}
+
+.mainentry {
+  background-color: $surface1;
+  padding: 5px;
+  border-radius: 5px;
+  margin: 5px;
+}
+
+.mainentry label {
+  font-size: 18px;
+  color: $white0;
+}
+
+.smallentry {
+  @extend .mainentry;
+
+  label {
+    font-size: 15px;
+  }
+}

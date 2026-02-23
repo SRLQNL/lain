@@ -1,0 +1,69 @@
+.vbar {
+  min-width: 2.6em;
+  background-color: $base;
+  padding: get-token(padding, small);
+
+  .control-box {
+    @extend .widget;
+
+    padding: 10px 6px;
+  }
+}
+
+.charging trough highlight {
+  background-color: $green;
+}
+
+.dying trough highlight {
+  background-color: $red;
+}
+
+.seektime {
+  trough {
+    min-height: 10px;
+    min-width: 180px;
+
+    slider {
+      background-color: $white2;
+      border-radius: 25px;
+      min-height: 20px;
+      min-width: 20px;
+      margin: -10px;
+    }
+
+    highlight {
+      background-color: $red;
+    }
+  }
+}
+
+.sidempdctl {
+  margin: 5px;
+  label {
+    font-size: 30px;
+    padding-right: 5px;
+    min-height: 1em;
+    min-width: 1em;
+  }
+}
+
+.mpdvolumeseek {
+  @extend .seektime;
+  trough {
+    min-height: 100px;
+    min-width: 10px;
+    highlight {
+      background-color: $white0;
+    }
+  }
+}
+
+.touch label {
+  font-size: 20px;
+}
+
+.mtitle {
+  color: $white0;
+  font-size: 20px;
+  margin-top: 30px;
+}

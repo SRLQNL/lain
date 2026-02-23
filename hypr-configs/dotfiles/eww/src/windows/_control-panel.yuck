@@ -1,0 +1,287 @@
+(defwidget ControlPanel []
+  (box
+    :orientation "v"
+    :space-evenly false
+    :class "control-panel"
+    :width 420
+    
+    (User)
+    (SystemMonitor)
+    
+    ; (MediaPlayer :height 140)
+    
+    (box
+      :orientation "h"
+      :height 180
+      
+      (Timer)
+      (BigSliders))
+    
+    (box
+      :space-evenly false
+      :orientation "v"
+      :vexpand true
+      :visible true
+      
+      (Toolbox)
+      (NotificationsWeatherBox))
+  ))
+
+(defwidget Toolbox []
+  (eventbox
+    :cursor "pointer"
+    
+    (box
+      :class "tricontrol panel-widget"
+      :orientation "h"
+      
+      (button :onclick "hyprpicker -a" (label :text "󰈊"))
+      (button :onclick "./scripts/pop scrop" (label :text "󰆞"))
+      (button :onclick "~/.config/eww/themeswitch/scripts/pop" (label :text "")))))
+
+(defwidget SystemMonitor []
+  (box
+    :orientation "h"
+    :class "panel-widget"
+    :spacing spacing-large
+    :height 140
+    
+    (SystemStatus :icon "󰻠" :val { EWW_CPU.avg })
+    (SystemStatus :icon "󰍛" :val { EWW_RAM.used_mem_perc })
+    (SystemStatus :icon "󰈐" :val { gpu })
+    (SystemStatus :icon "" :val { EWW_BATTERY.BAT0.capacity } :visible false)
+    (SystemStatus :icon "󰃞" :val { external_monitor_brightness })
+  ))
+
+(defwidget User []
+  (box
+    :orientation "h"
+    :space-evenly false
+    :height 140
+    :width 320
+    :class "panel-widget"
+    :valign "start"
+    :halign "fill"
+    :hexpand true
+    
+    (image  :image-width 80 :image-height 80 :path "./assets/image/fieshidle.gif")
+    (scroll
+      :hscroll true
+      :vscroll false
+      :hexpand true
+      (box
+        :orientation "v"
+        :class "userinfo"
+        :space-evenly false
+        :valign "center"
+        :halign "center"
+        (label :halign "start" :text "${datehour < 12 ? 'Good morning' : datehour < 18 ? 'Good afternoon' : datehour < 22 ? 'Good evening' : 'Good night'} ${hostname}")
+        (label :halign "start" :text uptime :style "font-size: 12px;")))))
+
+(defwidget NotificationsWeatherBox []
+  (box
+    :orientation "v"
+    :halign "fill"
+    :valign "fill"
+    :vexpand true
+    :class "panel-widget"
+    :space-evenly false
+    
+    (box
+      :orientation "h"
+      (button
+        :onclick "${EWW_CMD} update revealWeather=false"
+        (label :class {!revealWeather ? "titlesel" : "title"} :text "Notifications"))
+      (button
+        :onclick "${EWW_CMD} update revealWeather=true"
+        (label :class {revealWeather ? "titlesel" : "title"} :text "Weather")))
+    
+    (box
+      :orientation "h"
+      :vexpand true
+      :hexpand true
+      :space-evenly false
+      
+      (revealer
+        :reveal {!revealWeather}
+        :hexpand {!revealWeather}
+        :transition "slideleft"
+        
+        (NotificationsLogs))
+      
+      (revealer
+        :reveal revealWeather
+        :hexpand revealWeather
+        :transition "slideleft"
+        
+        (Weather)))))
+
+(defwidget Weather []
+  (overlay
+    (box
+      :orientation "v"
+      :halign "fill"
+      :valign "fill"
+      :vexpand true
+      :space-evenly false
+      
+      (weathermain)
+      
+      (scroll
+        :hscroll false
+        :vscroll true
+        :vexpand true
+        (box
+          :orientation "v"
+          :valign "start"
+          :space-evenly false
+          (for hour in {weatherjson.hourly}
+            (weatherhour :hour hour)))))
+    (box
+      :valign "end"
+      :hexpand true
+      :vexpand false
+      :height 80
+    :class "fadeoutbox")
+  ))
+
+(defwidget NotificationsLogs []
+  (box
+    :halign "fill"
+    :valign "fill"
+    :vexpand true
+    :space-evenly false
+    :orientation "v"
+    
+    (overlay
+      :vexpand true
+      
+      (box
+        :halign "fill"
+        :valign "fill"
+        :vexpand true
+        :space-evenly false
+        :orientation "v"
+        
+        (scroll
+          :hscroll false
+          :vscroll true
+          :vexpand true
+          :valign "fill"
+          
+          (box
+            :orientation "v"
+            :valign "start"
+            :space-evenly false
+            (for notif in {notifications.notifications}
+              (SingleNotification :noti notif :initial false))))
+      )
+      
+      (box
+        :valign "end"
+        :hexpand true
+        :vexpand false
+        :height 80
+      :class "fadeoutbox")
+    )
+    
+    (box
+      :orientation "h"
+      :valign "end"
+      
+      (button
+        :onclick "./scripts/notification/manage --clear"
+        (label
+          :class "title"
+        :text "Clear All"))
+      (button
+        :onclick "./scripts/notification/manage --toggle"
+        (label
+          :class { notifications.dnd ? "titlesel" : "title"}
+        :text "Do Not Disturb")))
+  )
+)
+
+(defwidget weatherhour [hour]
+  (box
+    :class "smallentry"
+    :orientation "h"
+    :height 80
+    :halign "fill"
+    :valign "center"
+    :vexpand false
+    :space-evenly true
+    :spacing 10
+    (label :style "font-size: 20px;" :text {hour.time})
+    (image
+      :image-width 50
+      :image-height 50
+    :path "./assets/image/weather/${hour.icon}.svg")
+    (box
+      :orientation "v"
+      :space-evenly false
+      :valign "center"
+      :spacing spacing-default
+      
+      (label :halign "start" :text "${hour.FeelsLikeC}°C")
+      (label :halign "start" :text "rain: ${hour.chanceofrain}%"))))
+
+(defwidget weathermain []
+  (box
+    :class "mainentry"
+    :orientation "h"
+    :halign "fill"
+    :height 150
+    :space-evenly false
+    :spacing 10
+    (image
+      :image-width 100
+      :image-height 100
+      :style "margin: 10px;"
+    :path "./assets/image/weather/${weatherjson.icon}.svg")
+    (scroll
+      :hscroll true
+      :vscroll false
+      :valign "fill"
+      :hexpand true
+      (box
+        :orientation "v"
+        (label :halign "start" :text {weatherjson.weatherDesc[0].value})
+        (label :halign "start" :text "Feels like ${weatherjson.FeelsLikeC}°C")
+        (label :halign "start" :text "← ${weatherjson.windspeedKmph} km/h")
+        ;; (label :halign "start" :text "${weatherjson.visibility} km")
+        ;; (label :halign "start" :text "${weatherjson.precipMM} mm")
+      ))))
+
+(defwidget BigSliders []
+  (box
+    :class "panel-widget"
+    :spacing spacing-small
+    
+    (BigBarSlider :var { volume } :icon {volumemute == 'false' ? "󰕾" : "󰖁"}
+    :onchange "pactl set-sink-volume @DEFAULT_SINK@ {}%")
+    
+    (BigBarSlider :var { mic_volume } :icon {volumemute == 'false' ? "" : "󰖁"}
+    :onchange "pactl set-source-volume @DEFAULT_SOURCE@ {}%")
+    
+    (BigBarSlider :var { external_monitor_brightness } :icon "󰃞" :visible false
+    :onchange "./scripts/brightness/set-external-brightness {}")
+  ))
+
+(defwidget quote []
+  (box
+    :class "quotewid panel-widget"
+    :halign "fill"
+    :valign "fill"
+    :vexpand true
+    :space-evenly false
+    :orientation "v"
+    (scroll :vexpand true :hscroll true :vscroll true
+      (label
+        :class "quote"
+        :text {quotejson.content}
+        :wrap true
+      :width 300))
+    (label
+      :class "quoteauthor"
+    :text "- ${quotejson.author}")))

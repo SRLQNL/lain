@@ -1,0 +1,34 @@
+(defwidget VerticalBarSlider [var ?onchange ?visible]
+  (scale
+    :value {var}
+    :onchange {onchange}
+    :class "vertical-bar-slider"
+    :visible {visible}
+    :orientation "v"
+    :tooltip "${var}%"
+    :max 101
+    :min 0
+  :flipped true))
+
+(defwidget BigBarSlider [var ?icon ?onchange ?visible ?timeout]
+  (box
+    :class "big-bar-slider"
+    :visible {visible}
+    
+    (overlay
+      (scale
+        :value var
+        :onchange {onchange}
+        :visible {visible}
+        :orientation "v"
+        :tooltip "${var}%"
+        :max 101
+        :min 0
+      :flipped true)
+      
+      (label
+        :class "icon"
+        :valign "end"
+      :text {icon}))
+  )
+)
