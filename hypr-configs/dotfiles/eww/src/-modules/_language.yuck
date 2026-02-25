@@ -1,3 +1,0 @@
-(defwidget Language []
-  (eventbox :cursor "pointer" :onclick "./scripts/kb-layout/set-active"
-    (box :class "language" (label :text {kbLayout}))))

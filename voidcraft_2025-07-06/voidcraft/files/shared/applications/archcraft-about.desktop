@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=About Voidcraft
+Comment=Details regarding Voidcraft and credits
+Exec=archcraft-about
+Icon=distributor-logo-void
+Type=Application
+Categories=System;

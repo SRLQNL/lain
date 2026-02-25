@@ -1,0 +1,9 @@
+[Plymouth Theme]
+Name=void
+Description=default plymouth theme for void
+Comment=Created By Aditya Shakya (@adi1090x)
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/void
+ScriptFile=/usr/share/plymouth/themes/void/void.script

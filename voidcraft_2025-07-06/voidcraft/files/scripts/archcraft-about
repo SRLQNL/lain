@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+## Copyright (C) 2020-2024 Aditya Shakya <adi1090x@gmail.com>
+##
+## About Voidcraft
+
+yad --title='About Voidcraft' --window-icon='distributor-logo-void' \
+	--about \
+	--pname='Voidcraft' \
+	--image='distributor-logo-void' \
+	--comments="Archcraft for Void Linux" \
+	--copyright="Copyright 2020-`date +'%Y'`, Aditya Shakya <adi1090x@gmail.com>" \
+	--license='GPL3' \
+	--website='https://archcraft.io' \
+	--website-label='archcraft.io' \
+	--authors="Aditya Shakya <adi1090x@gmail.com>"
